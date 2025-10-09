@@ -22,7 +22,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    pub fn scan_tokens(&mut self) -> &Vec<Token> {
+    pub fn scan_tokens(&mut self) -> &Vec<Token<'a>> {
         while !self.is_at_end() {
             self.start = self.current;
             self.scan_token();
@@ -281,6 +281,218 @@ impl<'a> Scanner<'a> {
             self.add_token(*token_kind, Literal::String(text));
         } else {
             self.add_token(TokenKind::Identifier, Literal::String(text));
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn test_simple_statements() {
+        struct TestCase {
+            source: &'static str,
+            expected_tokens: Vec<TokenKind>,
+        }
+
+        let test_cases = vec![
+            TestCase {
+                source: "var x = 10;",
+                expected_tokens: vec![
+                    TokenKind::Var,
+                    TokenKind::Identifier,
+                    TokenKind::Equal,
+                    TokenKind::Number,
+                    TokenKind::Semicolon,
+                    TokenKind::Eof,
+                ],
+            },
+            TestCase {
+                source: "print \"Hello, World!\";",
+                expected_tokens: vec![
+                    TokenKind::Print,
+                    TokenKind::String,
+                    TokenKind::Semicolon,
+                    TokenKind::Eof,
+                ],
+            },
+            TestCase {
+                source: "if (x > 5) { print x; }",
+                expected_tokens: vec![
+                    TokenKind::If,
+                    TokenKind::LeftParen,
+                    TokenKind::Identifier,
+                    TokenKind::Greater,
+                    TokenKind::Number,
+                    TokenKind::RightParen,
+                    TokenKind::LeftBrace,
+                    TokenKind::Print,
+                    TokenKind::Identifier,
+                    TokenKind::Semicolon,
+                    TokenKind::RightBrace,
+                    TokenKind::Eof,
+                ],
+            },
+            TestCase {
+                source: r#"
+                fun addPair(a, b) {
+                    return a + b;
+                }
+                "#,
+                expected_tokens: vec![
+                    TokenKind::Fun,
+                    TokenKind::Identifier,
+                    TokenKind::LeftParen,
+                    TokenKind::Identifier,
+                    TokenKind::Comma,
+                    TokenKind::Identifier,
+                    TokenKind::RightParen,
+                    TokenKind::LeftBrace,
+                    TokenKind::Return,
+                    TokenKind::Identifier,
+                    TokenKind::Plus,
+                    TokenKind::Identifier,
+                    TokenKind::Semicolon,
+                    TokenKind::RightBrace,
+                    TokenKind::Eof,
+                ],
+            },
+            TestCase {
+                source: r#"
+                fun returnFunction() {
+                    var outside = "outside";
+
+                    fun inner() {
+                        print outside;
+                    }
+
+                    return inner;
+                }
+                "#,
+                expected_tokens: vec![
+                    TokenKind::Fun,
+                    TokenKind::Identifier,
+                    TokenKind::LeftParen,
+                    TokenKind::RightParen,
+                    TokenKind::LeftBrace,
+                    TokenKind::Var,
+                    TokenKind::Identifier,
+                    TokenKind::Equal,
+                    TokenKind::String,
+                    TokenKind::Semicolon,
+                    TokenKind::Fun,
+                    TokenKind::Identifier,
+                    TokenKind::LeftParen,
+                    TokenKind::RightParen,
+                    TokenKind::LeftBrace,
+                    TokenKind::Print,
+                    TokenKind::Identifier,
+                    TokenKind::Semicolon,
+                    TokenKind::RightBrace,
+                    TokenKind::Return,
+                    TokenKind::Identifier,
+                    TokenKind::Semicolon,
+                    TokenKind::RightBrace,
+                    TokenKind::Eof,
+                ],
+            },
+            TestCase {
+                source: r#"
+                class Breakfast {
+                    cook() {
+                        print "Eggs a-fryin'!";
+                    }
+
+                    serve(who) {
+                        print "Enjoy your breakfast, " + who + ".";
+                    }
+                }
+                "#,
+                expected_tokens: vec![
+                    TokenKind::Class,
+                    TokenKind::Identifier,
+                    TokenKind::LeftBrace,
+                    TokenKind::Identifier,
+                    TokenKind::LeftParen,
+                    TokenKind::RightParen,
+                    TokenKind::LeftBrace,
+                    TokenKind::Print,
+                    TokenKind::String,
+                    TokenKind::Semicolon,
+                    TokenKind::RightBrace,
+                    TokenKind::Identifier,
+                    TokenKind::LeftParen,
+                    TokenKind::Identifier,
+                    TokenKind::RightParen,
+                    TokenKind::LeftBrace,
+                    TokenKind::Print,
+                    TokenKind::String,
+                    TokenKind::Plus,
+                    TokenKind::Identifier,
+                    TokenKind::Plus,
+                    TokenKind::String,
+                    TokenKind::Semicolon,
+                    TokenKind::RightBrace,
+                    TokenKind::RightBrace,
+                    TokenKind::Eof,
+                ],
+            },
+            TestCase {
+                source: r#"
+                class Brunch < Breakfast {
+                    init(meat, bread, drink) {
+                        super.init(meat, bread);
+                        this.drink = drink;
+                    }
+                }
+                "#,
+                expected_tokens: vec![
+                    TokenKind::Class,
+                    TokenKind::Identifier,
+                    TokenKind::Less,
+                    TokenKind::Identifier,
+                    TokenKind::LeftBrace,
+                    TokenKind::Identifier,
+                    TokenKind::LeftParen,
+                    TokenKind::Identifier,
+                    TokenKind::Comma,
+                    TokenKind::Identifier,
+                    TokenKind::Comma,
+                    TokenKind::Identifier,
+                    TokenKind::RightParen,
+                    TokenKind::LeftBrace,
+                    TokenKind::Super,
+                    TokenKind::Dot,
+                    TokenKind::Identifier,
+                    TokenKind::LeftParen,
+                    TokenKind::Identifier,
+                    TokenKind::Comma,
+                    TokenKind::Identifier,
+                    TokenKind::RightParen,
+                    TokenKind::Semicolon,
+                    TokenKind::This,
+                    TokenKind::Dot,
+                    TokenKind::Identifier,
+                    TokenKind::Equal,
+                    TokenKind::Identifier,
+                    TokenKind::Semicolon,
+                    TokenKind::RightBrace,
+                    TokenKind::RightBrace,
+                    TokenKind::Eof,
+                ],
+            },
+        ];
+
+        for case in test_cases {
+            let mut scanner = Scanner::new(case.source);
+            let tokens = scanner.scan_tokens();
+            let token_kinds: Vec<TokenKind> = tokens.iter().map(|t| t.kind).collect();
+            assert_eq!(
+                token_kinds, case.expected_tokens,
+                "Failed on source: {}",
+                case.source
+            );
         }
     }
 }
