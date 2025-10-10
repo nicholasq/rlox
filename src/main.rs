@@ -3,6 +3,7 @@ use std::fs;
 use std::io::{self, BufRead, Write};
 use std::process::exit;
 
+mod expr;
 mod rlox;
 mod scanner;
 mod token;
