@@ -3,7 +3,7 @@ use crate::token::{Literal, Token, TokenKind, KEYWORD_MAP};
 
 pub struct Scanner<'a> {
     source: &'a str,
-    tokens: Vec<Token<'a>>,
+    tokens: Vec<Token>,
     start: usize,
     current: usize,
     line: usize,
@@ -22,18 +22,17 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    pub fn scan_tokens(&mut self) -> &Vec<Token<'a>> {
+    pub fn scan_tokens(&mut self) -> &Vec<Token> {
         while !self.is_at_end() {
             self.start = self.current;
             self.scan_token();
         }
         self.tokens.push(Token {
             kind: TokenKind::Eof,
-            lexeme: "",
+            lexeme: "".to_string(),
             literal: Literal::None,
             line: self.line,
         });
-        dbg!(&self.tokens);
         &self.tokens
     }
 
@@ -43,43 +42,40 @@ impl<'a> Scanner<'a> {
         match c {
             '(' => self.add_token(
                 TokenKind::LeftParen,
-                Literal::String(&self.source[self.start..self.current]),
+                self.source[self.start..self.current].into(),
             ),
             ')' => self.add_token(
                 TokenKind::RightParen,
-                Literal::String(&self.source[self.start..self.current]),
+                self.source[self.start..self.current].into(),
             ),
             '{' => self.add_token(
                 TokenKind::LeftBrace,
-                Literal::String(&self.source[self.start..self.current]),
+                self.source[self.start..self.current].into(),
             ),
             '}' => self.add_token(
                 TokenKind::RightBrace,
-                Literal::String(&self.source[self.start..self.current]),
+                self.source[self.start..self.current].into(),
             ),
             ',' => self.add_token(
                 TokenKind::Comma,
-                Literal::String(&self.source[self.start..self.current]),
+                self.source[self.start..self.current].into(),
             ),
-            '.' => self.add_token(
-                TokenKind::Dot,
-                Literal::String(&self.source[self.start..self.current]),
-            ),
+            '.' => self.add_token(TokenKind::Dot, self.source[self.start..self.current].into()),
             '-' => self.add_token(
                 TokenKind::Minus,
-                Literal::String(&self.source[self.start..self.current]),
+                self.source[self.start..self.current].into(),
             ),
             '+' => self.add_token(
                 TokenKind::Plus,
-                Literal::String(&self.source[self.start..self.current]),
+                self.source[self.start..self.current].into(),
             ),
             ';' => self.add_token(
                 TokenKind::Semicolon,
-                Literal::String(&self.source[self.start..self.current]),
+                self.source[self.start..self.current].into(),
             ),
             '*' => self.add_token(
                 TokenKind::Star,
-                Literal::String(&self.source[self.start..self.current]),
+                self.source[self.start..self.current].into(),
             ),
             '!' => {
                 let token_kind = if self.char_match('=') {
@@ -88,10 +84,7 @@ impl<'a> Scanner<'a> {
                 } else {
                     TokenKind::Bang
                 };
-                self.add_token(
-                    token_kind,
-                    Literal::String(&self.source[self.start..self.current]),
-                );
+                self.add_token(token_kind, self.source[self.start..self.current].into());
             }
             '=' => {
                 let token_kind = if self.char_match('=') {
@@ -100,10 +93,7 @@ impl<'a> Scanner<'a> {
                 } else {
                     TokenKind::Equal
                 };
-                self.add_token(
-                    token_kind,
-                    Literal::String(&self.source[self.start..self.current]),
-                )
+                self.add_token(token_kind, self.source[self.start..self.current].into())
             }
             '<' => {
                 let token_kind = if self.char_match('=') {
@@ -112,10 +102,7 @@ impl<'a> Scanner<'a> {
                 } else {
                     TokenKind::Less
                 };
-                self.add_token(
-                    token_kind,
-                    Literal::String(&self.source[self.start..self.current]),
-                )
+                self.add_token(token_kind, self.source[self.start..self.current].into())
             }
             '>' => {
                 let token_kind = if self.char_match('=') {
@@ -124,10 +111,7 @@ impl<'a> Scanner<'a> {
                 } else {
                     TokenKind::Greater
                 };
-                self.add_token(
-                    token_kind,
-                    Literal::String(&self.source[self.start..self.current]),
-                );
+                self.add_token(token_kind, self.source[self.start..self.current].into());
             }
             '/' => {
                 if self.char_match('/') {
@@ -137,7 +121,7 @@ impl<'a> Scanner<'a> {
                 } else {
                     self.add_token(
                         TokenKind::Slash,
-                        Literal::String(&self.source[self.start..self.current]),
+                        self.source[self.start..self.current].into(),
                     );
                 }
             }
@@ -154,7 +138,7 @@ impl<'a> Scanner<'a> {
                 } else {
                     const ERROR: &str = "Unexpected character";
                     self.errors.push(format!("{} at line {}", ERROR, self.line));
-                    RLox::error(self.line as u32, ERROR);
+                    RLox::error_line(self.line, ERROR);
                 }
             }
         }
@@ -171,11 +155,11 @@ impl<'a> Scanner<'a> {
         self.source[old..].chars().next().unwrap()
     }
 
-    fn add_token(&mut self, kind: TokenKind, literal: Literal<'a>) {
+    fn add_token(&mut self, kind: TokenKind, literal: Literal) {
         self.tokens.push(Token {
             kind,
             literal,
-            lexeme: &self.source[self.start..self.current],
+            lexeme: self.source[self.start..self.current].into(),
             line: self.line,
         });
     }
@@ -231,14 +215,14 @@ impl<'a> Scanner<'a> {
         }
 
         if self.is_at_end() {
-            RLox::error(self.line as u32, "Unterminated string.");
+            RLox::error_line(self.line, "Unterminated string.");
         }
 
         self.advance();
 
         let value = &self.source[self.start + 1..self.current - 1];
 
-        self.add_token(TokenKind::String, Literal::String(value));
+        self.add_token(TokenKind::String, value.into());
     }
 
     fn is_digit(c: u8) -> bool {
@@ -278,9 +262,9 @@ impl<'a> Scanner<'a> {
 
         let text = &self.source[self.start..self.current];
         if let Some(token_kind) = KEYWORD_MAP.get(text) {
-            self.add_token(*token_kind, Literal::String(text));
+            self.add_token(*token_kind, text.into());
         } else {
-            self.add_token(TokenKind::Identifier, Literal::String(text));
+            self.add_token(TokenKind::Identifier, text.into());
         }
     }
 }
@@ -288,18 +272,14 @@ impl<'a> Scanner<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::tests::test_case::TestCase;
 
     #[test]
     pub fn test_simple_statements() {
-        struct TestCase {
-            source: &'static str,
-            expected_tokens: Vec<TokenKind>,
-        }
-
         let test_cases = vec![
             TestCase {
-                source: "var x = 10;",
-                expected_tokens: vec![
+                input: "var x = 10;",
+                expected: vec![
                     TokenKind::Var,
                     TokenKind::Identifier,
                     TokenKind::Equal,
@@ -309,8 +289,8 @@ mod tests {
                 ],
             },
             TestCase {
-                source: "print \"Hello, World!\";",
-                expected_tokens: vec![
+                input: "print \"Hello, World!\";",
+                expected: vec![
                     TokenKind::Print,
                     TokenKind::String,
                     TokenKind::Semicolon,
@@ -318,8 +298,8 @@ mod tests {
                 ],
             },
             TestCase {
-                source: "if (x > 5) { print x; }",
-                expected_tokens: vec![
+                input: "if (x > 5) { print x; }",
+                expected: vec![
                     TokenKind::If,
                     TokenKind::LeftParen,
                     TokenKind::Identifier,
@@ -335,12 +315,12 @@ mod tests {
                 ],
             },
             TestCase {
-                source: r#"
+                input: r#"
                 fun addPair(a, b) {
                     return a + b;
                 }
                 "#,
-                expected_tokens: vec![
+                expected: vec![
                     TokenKind::Fun,
                     TokenKind::Identifier,
                     TokenKind::LeftParen,
@@ -359,7 +339,7 @@ mod tests {
                 ],
             },
             TestCase {
-                source: r#"
+                input: r#"
                 fun returnFunction() {
                     var outside = "outside";
 
@@ -370,7 +350,7 @@ mod tests {
                     return inner;
                 }
                 "#,
-                expected_tokens: vec![
+                expected: vec![
                     TokenKind::Fun,
                     TokenKind::Identifier,
                     TokenKind::LeftParen,
@@ -398,7 +378,7 @@ mod tests {
                 ],
             },
             TestCase {
-                source: r#"
+                input: r#"
                 class Breakfast {
                     cook() {
                         print "Eggs a-fryin'!";
@@ -409,7 +389,7 @@ mod tests {
                     }
                 }
                 "#,
-                expected_tokens: vec![
+                expected: vec![
                     TokenKind::Class,
                     TokenKind::Identifier,
                     TokenKind::LeftBrace,
@@ -439,7 +419,7 @@ mod tests {
                 ],
             },
             TestCase {
-                source: r#"
+                input: r#"
                 class Brunch < Breakfast {
                     init(meat, bread, drink) {
                         super.init(meat, bread);
@@ -447,7 +427,7 @@ mod tests {
                     }
                 }
                 "#,
-                expected_tokens: vec![
+                expected: vec![
                     TokenKind::Class,
                     TokenKind::Identifier,
                     TokenKind::Less,
@@ -485,13 +465,13 @@ mod tests {
         ];
 
         for case in test_cases {
-            let mut scanner = Scanner::new(case.source);
+            let mut scanner = Scanner::new(case.input);
             let tokens = scanner.scan_tokens();
             let token_kinds: Vec<TokenKind> = tokens.iter().map(|t| t.kind).collect();
             assert_eq!(
-                token_kinds, case.expected_tokens,
-                "Failed on source: {}",
-                case.source
+                token_kinds, case.expected,
+                "Failed on input: {}",
+                case.input
             );
         }
     }

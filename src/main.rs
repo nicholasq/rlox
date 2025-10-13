@@ -4,9 +4,11 @@ use std::io::{self, BufRead, Write};
 use std::process::exit;
 
 mod expr;
+mod parser;
 mod rlox;
 mod scanner;
 mod token;
+mod utils;
 
 use crate::rlox::RLox;
 

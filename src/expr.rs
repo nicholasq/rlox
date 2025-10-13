@@ -1,172 +1,215 @@
 use std::fmt::Display;
 
-use crate::token::{self, Token};
+use crate::token::Token;
 
-pub trait Expr: Display {}
-
-struct Binary<'a> {
-    left: Box<dyn Expr>,
-    operator: Token<'a>,
-    right: Box<dyn Expr>,
+/// Represents an expression in the abstract syntax tree (AST).
+///
+/// The `Expr` enum covers all possible expression types:
+/// - `Binary`: A binary operation (e.g., addition, subtraction) with a left and right operand and an operator.
+/// - `Grouping`: An expression wrapped in parentheses to control precedence.
+/// - `Literal`: A literal value (e.g., number, string, boolean).
+/// - `Unary`: A unary operation (e.g., negation) with an operator and a right operand.
+pub enum Expr {
+    /// A binary operation expression.
+    ///
+    /// # Fields
+    /// - `left`: The left-hand side expression.
+    /// - `operator`: The operator token (e.g., '+', '-', '*', '/').
+    /// - `right`: The right-hand side expression.
+    Binary {
+        left: Box<Expr>,
+        operator: Token,
+        right: Box<Expr>,
+    },
+    /// A grouping expression, typically used for parenthesized expressions.
+    ///
+    /// # Fields
+    /// - `expression`: The inner expression.
+    Grouping { expression: Box<Expr> },
+    /// A literal value expression.
+    ///
+    /// # Fields
+    /// - `0`: The literal value.
+    Literal(Literal),
+    /// A unary operation expression.
+    ///
+    /// # Fields
+    /// - `operator`: The operator token (e.g., '-', '!').
+    /// - `right`: The operand expression.
+    Unary { operator: Token, right: Box<Expr> },
 }
 
-impl Expr for Binary<'_> {}
-
-impl Display for Binary<'_> {
+impl Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({} {} {})", self.operator.lexeme, self.left, self.right)
-    }
-}
-
-struct Grouping {
-    expression: Box<dyn Expr>,
-}
-
-impl Expr for Grouping {}
-
-impl Display for Grouping {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(group {})", self.expression)
-    }
-}
-
-struct Literal<'a> {
-    value: token::Literal<'a>,
-}
-
-impl Expr for Literal<'_> {}
-
-impl Display for Literal<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.value {
-            token::Literal::Number(n) => write!(f, "{}", n),
-            token::Literal::String(s) => write!(f, "\"{}\"", s),
-            token::Literal::Identifier(s) => write!(f, "{}", s),
-            token::Literal::None => write!(f, "nil"),
+        match self {
+            Expr::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                write!(f, "({} {} {})", operator.lexeme, left, right)
+            }
+            Expr::Grouping { expression } => {
+                write!(f, "(group {})", expression)
+            }
+            Expr::Literal(literal) => {
+                write!(f, "{}", literal)
+            }
+            Expr::Unary { operator, right } => {
+                write!(f, "({} {})", operator.lexeme, right)
+            }
         }
     }
 }
 
-struct Unary<'a> {
-    operator: Token<'a>,
-    right: Box<dyn Expr>,
+impl From<f64> for Literal {
+    fn from(value: f64) -> Self {
+        Literal::Number(value)
+    }
 }
 
-impl Expr for Unary<'_> {}
+impl From<String> for Literal {
+    fn from(value: String) -> Self {
+        Literal::String(value)
+    }
+}
 
-impl Display for Unary<'_> {
+impl From<&str> for Literal {
+    fn from(value: &str) -> Self {
+        Literal::String(value.to_string())
+    }
+}
+
+impl From<bool> for Literal {
+    fn from(value: bool) -> Self {
+        Literal::Boolean(if value {
+            LiteralBool::True
+        } else {
+            LiteralBool::False
+        })
+    }
+}
+
+impl From<f64> for Expr {
+    fn from(value: f64) -> Self {
+        Expr::Literal(value.into())
+    }
+}
+
+impl From<String> for Expr {
+    fn from(value: String) -> Self {
+        Expr::Literal(value.into())
+    }
+}
+
+impl From<&str> for Expr {
+    fn from(value: &str) -> Self {
+        Expr::Literal(value.into())
+    }
+}
+
+impl From<bool> for Expr {
+    fn from(value: bool) -> Self {
+        Expr::Literal(value.into())
+    }
+}
+
+impl Expr {
+    pub fn literal<T>(value: T) -> Self
+    where
+        T: Into<Literal>,
+    {
+        Expr::Literal(value.into())
+    }
+
+    pub fn binary(left: Expr, operator: Token, right: Expr) -> Self {
+        Expr::Binary {
+            left: Box::new(left),
+            operator,
+            right: Box::new(right),
+        }
+    }
+
+    pub fn grouping(expr: Expr) -> Self {
+        Expr::Grouping {
+            expression: Box::new(expr),
+        }
+    }
+
+    pub fn unary(operator: Token, right: Expr) -> Self {
+        Expr::Unary {
+            operator,
+            right: Box::new(right),
+        }
+    }
+}
+
+pub enum LiteralBool {
+    True,
+    False,
+}
+
+impl Display for LiteralBool {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({} {})", self.operator.lexeme, self.right)
+        match self {
+            LiteralBool::True => write!(f, "true"),
+            LiteralBool::False => write!(f, "false"),
+        }
+    }
+}
+
+pub enum Literal {
+    Number(f64),
+    String(String),
+    Boolean(LiteralBool),
+    Identifier(String),
+    None,
+}
+
+impl Display for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Literal::Number(n) => write!(f, "{}", n),
+            Literal::String(s) => write!(f, "\"{}\"", s),
+            Literal::Identifier(s) => write!(f, "{}", s),
+            Literal::Boolean(b) => write!(f, "{}", b),
+            Literal::None => write!(f, "nil"),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::token::{Literal as TokenLiteral, Token, TokenKind};
-
-    fn literal_number(value: f64) -> Literal<'static> {
-        Literal {
-            value: TokenLiteral::Number(value),
-        }
-    }
-
-    fn literal_string(value: &'static str) -> Literal<'static> {
-        Literal {
-            value: TokenLiteral::String(value),
-        }
-    }
-
-    fn unary_expr(operator: Token<'static>, right: Box<dyn Expr>) -> Unary<'static> {
-        Unary { operator, right }
-    }
-
-    fn binary_expr(
-        left: Box<dyn Expr>,
-        operator: Token<'static>,
-        right: Box<dyn Expr>,
-    ) -> Binary<'static> {
-        Binary {
-            left,
-            operator,
-            right,
-        }
-    }
+    use crate::utils::tests::test_case::TestCase;
 
     #[test]
     fn test_expr_display() {
-        struct TestCase<'a> {
-            expr: &'a dyn Expr,
-            expected: &'a str,
-        }
-
-        let token_plus = Token {
-            kind: TokenKind::Plus,
-            lexeme: "+",
-            literal: TokenLiteral::None,
-            line: 1,
-        };
-        let unary_plus = unary_expr(token_plus, Box::new(literal_number(456.0)));
-
-        let token_star = Token {
-            kind: TokenKind::Star,
-            lexeme: "*",
-            literal: TokenLiteral::None,
-            line: 1,
-        };
-        let binary = binary_expr(
-            Box::new(literal_number(456.0)),
-            token_star,
-            Box::new(literal_number(789.0)),
-        );
-
-        let grouping = Grouping {
-            expression: Box::new(binary),
-        };
-
-        let literal_str = literal_string("hello");
-
-        let token_minus = Token {
-            kind: TokenKind::Minus,
-            lexeme: "-",
-            literal: TokenLiteral::None,
-            line: 1,
-        };
-        let unary_minus = unary_expr(token_minus, Box::new(literal_number(123.0)));
-
-        let grouping_45_67 = Grouping {
-            expression: Box::new(literal_number(45.67)),
-        };
-
-        let token_star = Token {
-            kind: TokenKind::Star,
-            lexeme: "*",
-            literal: TokenLiteral::None,
-            line: 1,
-        };
-        let binary_complex =
-            binary_expr(Box::new(unary_minus), token_star, Box::new(grouping_45_67));
-
         let test_cases = vec![
             TestCase {
-                expr: &unary_plus,
-                expected: "(+ 456)",
+                input: Expr::unary("-".into(), 456.0.into()),
+                expected: "(- 456)",
             },
             TestCase {
-                expr: &grouping,
+                input: Expr::grouping(Expr::binary(456f64.into(), "*".into(), 789f64.into())),
                 expected: "(group (* 456 789))",
             },
             TestCase {
-                expr: &literal_str,
+                input: "hello".into(),
                 expected: "\"hello\"",
             },
             TestCase {
-                expr: &binary_complex,
+                input: Expr::binary(
+                    Expr::unary("-".into(), (123f64).into()),
+                    "*".into(),
+                    Expr::grouping(45.67.into()),
+                ),
                 expected: "(* (- 123) (group 45.67))",
             },
         ];
+
         for case in test_cases {
-            assert_eq!(case.expr.to_string(), case.expected);
+            assert_eq!(case.input.to_string(), case.expected);
         }
     }
 }

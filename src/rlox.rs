@@ -1,11 +1,14 @@
-use crate::scanner::Scanner;
+use crate::{
+    scanner::Scanner,
+    token::{self, TokenKind},
+};
 
 pub(crate) struct RLox {
     pub(crate) had_error: bool,
 }
 
 impl RLox {
-    pub(crate) fn new() -> RLox {
+    pub(crate) fn new() -> Self {
         RLox { had_error: false }
     }
 
@@ -14,11 +17,19 @@ impl RLox {
         scanner.scan_tokens();
     }
 
-    pub(crate) fn error(line: u32, message: &str) -> bool {
-        RLox::report(line, "", message)
+    pub(crate) fn error_token(token: &token::Token, message: &str) -> bool {
+        if token.kind == TokenKind::Eof {
+            RLox::report(token.line, " at end", message)
+        } else {
+            RLox::report(token.line, &format!(" at '{}'", token.lexeme), message)
+        }
     }
 
-    fn report(line: u32, location: &str, message: &str) -> bool {
+    pub(crate) fn error_line(line: usize, message: &str) {
+        RLox::report(line, "", message);
+    }
+
+    fn report(line: usize, location: &str, message: &str) -> bool {
         println!("[line {}] Error {} : {}", line, location, message);
         true
     }

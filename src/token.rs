@@ -48,19 +48,31 @@ pub enum TokenKind {
     Eof,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum Literal<'a> {
-    String(&'a str),
+#[derive(Clone, Debug)]
+pub enum Literal {
+    String(String),
     Number(f64),
-    Identifier(&'a str),
+    Identifier(String),
     None,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct Token<'a> {
+impl From<f64> for Literal {
+    fn from(value: f64) -> Self {
+        Literal::Number(value)
+    }
+}
+
+impl From<&str> for Literal {
+    fn from(value: &str) -> Self {
+        Literal::String(value.to_string())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Token {
     pub kind: TokenKind,
-    pub lexeme: &'a str,
-    pub literal: Literal<'a>,
+    pub lexeme: String,
+    pub literal: Literal,
     pub line: usize,
 }
 
