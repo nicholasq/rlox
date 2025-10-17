@@ -4,6 +4,7 @@ use std::io::{self, BufRead, Write};
 use std::process::exit;
 
 mod expr;
+mod interpreter;
 mod parser;
 mod rlox;
 mod scanner;

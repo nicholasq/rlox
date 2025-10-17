@@ -1,4 +1,6 @@
 use crate::{
+    interpreter::interpret,
+    parser::Parser,
     scanner::Scanner,
     token::{self, TokenKind},
 };
@@ -14,7 +16,17 @@ impl RLox {
 
     pub(crate) fn run(&self, source: &str) {
         let mut scanner = Scanner::new(source);
-        scanner.scan_tokens();
+        let tokens = scanner.scan_tokens();
+        let mut parser = Parser::new(tokens);
+        let expr = parser.parse();
+
+        match expr {
+            Ok(expr) => match interpret(expr) {
+                Ok(value) => println!("{}", value),
+                Err(err) => eprintln!("{}\n[line {}] ", err.message, err.token.line),
+            },
+            Err(err) => eprintln!("{}", err),
+        }
     }
 
     pub(crate) fn error_token(token: &token::Token, message: &str) -> bool {

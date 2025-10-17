@@ -10,19 +10,19 @@ use anyhow::{anyhow, Result};
 /// # Fields
 /// - `tokens`: A vector containing the tokens to be parsed.
 /// - `current`: The index of the current token being processed.
-pub struct Parser {
-    tokens: Vec<token::Token>,
+pub struct Parser<'a> {
+    tokens: &'a Vec<token::Token>,
     current: usize,
 }
 
-impl Parser {
-    fn new(tokens: Vec<token::Token>) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(tokens: &'a Vec<token::Token>) -> Self {
         Self { tokens, current: 0 }
     }
 
     /// Parses an expression and returns the resulting AST node.
     /// This is the entry point for parsing expressions.
-    fn parse(&mut self) -> Result<expr::Expr> {
+    pub fn parse(&mut self) -> Result<expr::Expr> {
         self.expression()
     }
 

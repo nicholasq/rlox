@@ -1,5 +1,23 @@
 use std::fmt::Display;
 
+/// Macro to convert a value into a Literal using `.into()`.
+/// Usage: `lit!(value)`
+#[macro_export]
+macro_rules! lit {
+    ($value:expr) => {
+        $crate::expr::Literal::from($value)
+    };
+}
+
+/// Macro to create an Expr::Literal from a value that can be converted into a Literal.
+/// Usage: `expr_lit!(value)`
+#[macro_export]
+macro_rules! expr_lit {
+    ($value:expr) => {
+        $crate::expr::Expr::Literal($crate::expr::Literal::from($value))
+    };
+}
+
 use crate::token::Token;
 
 /// Represents an expression in the abstract syntax tree (AST).
@@ -9,6 +27,7 @@ use crate::token::Token;
 /// - `Grouping`: An expression wrapped in parentheses to control precedence.
 /// - `Literal`: A literal value (e.g., number, string, boolean).
 /// - `Unary`: A unary operation (e.g., negation) with an operator and a right operand.
+#[derive(Debug, Clone)]
 pub enum Expr {
     /// A binary operation expression.
     ///
@@ -144,6 +163,7 @@ impl Expr {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum LiteralBool {
     True,
     False,
@@ -158,6 +178,7 @@ impl Display for LiteralBool {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub enum Literal {
     Number(f64),
     String(String),
