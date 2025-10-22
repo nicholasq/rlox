@@ -3,14 +3,19 @@ use std::fs;
 use std::io::{self, BufRead, Write};
 use std::process::exit;
 
+mod environment;
+mod error;
 mod expr;
 mod interpreter;
 mod parser;
 mod rlox;
 mod scanner;
+mod stmt;
 mod token;
 mod utils;
 
+use crate::environment::Environment;
+use crate::interpreter::Interpreter;
 use crate::rlox::RLox;
 
 fn main() {
@@ -29,7 +34,9 @@ fn main() {
 
 fn run_file(file_name: &str) {
     if let Ok(content) = fs::read_to_string(file_name) {
-        let rlox = RLox::new();
+        let environment = Environment::new();
+        let interpreter = Interpreter::new(environment);
+        let mut rlox = RLox::new(interpreter);
         rlox.run(&content);
         if rlox.had_error {
             exit(65);
@@ -43,7 +50,9 @@ fn run_prompt() {
     let stdin = io::stdin();
     let mut stdout = io::stdout();
     let mut lines = stdin.lock().lines();
-    let mut rlox = RLox::new();
+    let environment = Environment::new();
+    let interpreter = Interpreter::new(environment);
+    let mut rlox = RLox::new(interpreter);
 
     loop {
         print!("> ");

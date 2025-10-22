@@ -1,3 +1,4 @@
+use crate::token::{Token, TokenKind};
 use std::fmt::Display;
 
 /// Macro to convert a value into a Literal using `.into()`.
@@ -18,17 +19,24 @@ macro_rules! expr_lit {
     };
 }
 
-use crate::token::Token;
-
 /// Represents an expression in the abstract syntax tree (AST).
 ///
 /// The `Expr` enum covers all possible expression types:
+/// - `Assign`: An assignment expression that assigns a value to a variable.
 /// - `Binary`: A binary operation (e.g., addition, subtraction) with a left and right operand and an operator.
 /// - `Grouping`: An expression wrapped in parentheses to control precedence.
 /// - `Literal`: A literal value (e.g., number, string, boolean).
 /// - `Unary`: A unary operation (e.g., negation) with an operator and a right operand.
+/// - `Variable`: A variable expression that evaluates to the variable's value.
 #[derive(Debug, Clone)]
 pub enum Expr {
+    /// An assignment expression.
+    /// Assigns a value to a variable.
+    ///
+    /// # Fields
+    /// - `name`: The name of the variable being assigned to.
+    /// - `value`: The value being assigned.
+    Assign { name: Token, value: Box<Expr> },
     /// A binary operation expression.
     ///
     /// # Fields
@@ -56,11 +64,21 @@ pub enum Expr {
     /// - `operator`: The operator token (e.g., '-', '!').
     /// - `right`: The operand expression.
     Unary { operator: Token, right: Box<Expr> },
+
+    /// A variable expression.
+    /// Evaluates to the value of the variable.
+    ///
+    /// # Fields
+    /// - `name`: The name of the variable.
+    Variable { name: Token },
 }
 
 impl Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Expr::Assign { name, value } => {
+                write!(f, "(= {} {})", name.lexeme, value)
+            }
             Expr::Binary {
                 left,
                 operator,
@@ -76,6 +94,9 @@ impl Display for Expr {
             }
             Expr::Unary { operator, right } => {
                 write!(f, "({} {})", operator.lexeme, right)
+            }
+            Expr::Variable { name } => {
+                write!(f, "{}", name.lexeme)
             }
         }
     }
@@ -202,6 +223,7 @@ impl Display for Literal {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::token;
     use crate::utils::tests::test_case::TestCase;
 
     #[test]
@@ -226,6 +248,29 @@ mod tests {
                     Expr::grouping(45.67.into()),
                 ),
                 expected: "(* (- 123) (group 45.67))",
+            },
+            TestCase {
+                input: Expr::Assign {
+                    name: Token {
+                        kind: TokenKind::Identifier,
+                        lexeme: "x".to_string(),
+                        literal: token::Literal::None,
+                        line: 1,
+                    },
+                    value: Box::new(Expr::Literal(123.0.into())),
+                },
+                expected: "(= x 123)",
+            },
+            TestCase {
+                input: Expr::Variable {
+                    name: Token {
+                        kind: TokenKind::Identifier,
+                        lexeme: "y".to_string(),
+                        literal: token::Literal::None,
+                        line: 1,
+                    },
+                },
+                expected: "y",
             },
         ];
 

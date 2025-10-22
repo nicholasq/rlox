@@ -1,5 +1,5 @@
 use crate::{
-    interpreter::interpret,
+    interpreter::Interpreter,
     parser::Parser,
     scanner::Scanner,
     token::{self, TokenKind},
@@ -7,22 +7,26 @@ use crate::{
 
 pub(crate) struct RLox {
     pub(crate) had_error: bool,
+    interpreter: Interpreter,
 }
 
 impl RLox {
-    pub(crate) fn new() -> Self {
-        RLox { had_error: false }
+    pub(crate) fn new(interpreter: Interpreter) -> Self {
+        RLox {
+            had_error: false,
+            interpreter,
+        }
     }
 
-    pub(crate) fn run(&self, source: &str) {
+    pub(crate) fn run(&mut self, source: &str) {
         let mut scanner = Scanner::new(source);
         let tokens = scanner.scan_tokens();
         let mut parser = Parser::new(tokens);
-        let expr = parser.parse();
+        let stmts = parser.parse();
 
-        match expr {
-            Ok(expr) => match interpret(expr) {
-                Ok(value) => println!("{}", value),
+        match stmts {
+            Ok(stmts) => match self.interpreter.interpret(stmts) {
+                Ok(_) => {}
                 Err(err) => eprintln!("{}\n[line {}] ", err.message, err.token.line),
             },
             Err(err) => eprintln!("{}", err),

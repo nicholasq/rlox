@@ -1,6 +1,7 @@
 use crate::{
     expr,
     rlox::RLox,
+    stmt::{self},
     token::{self, TokenKind},
 };
 use anyhow::{anyhow, Result};
@@ -22,13 +23,115 @@ impl<'a> Parser<'a> {
 
     /// Parses an expression and returns the resulting AST node.
     /// This is the entry point for parsing expressions.
-    pub fn parse(&mut self) -> Result<expr::Expr> {
-        self.expression()
+    pub fn parse(&mut self) -> Result<Vec<stmt::Stmt>> {
+        let mut statements = Vec::new();
+        while !self.at_end() {
+            statements.push(self.declaration()?);
+        }
+        Ok(statements)
+    }
+
+    /// Parses a declaration statement, such as a variable declaration.
+    /// This method attempts to parse a `var` declaration or falls back to a generic statement.
+    fn declaration(&mut self) -> Result<stmt::Stmt> {
+        match self.match_kinds(&[TokenKind::Var]) {
+            true => self.var_declaration().inspect_err(|_| {
+                self.synchronize();
+            }),
+            false => self.statement().inspect_err(|_| {
+                self.synchronize();
+            }),
+        }
+    }
+
+    /// Parses a variable declaration statement.
+    /// If an initializer is present, it is parsed; otherwise, the initializer is set to `None`.
+    /// This method expects a semicolon after the declaration.
+    fn var_declaration(&mut self) -> Result<stmt::Stmt> {
+        let name = self
+            .consume(&TokenKind::Identifier, "Expect variable name.")?
+            .clone();
+
+        let initializer = if self.match_kinds(&[TokenKind::Equal]) {
+            self.expression()?
+        } else {
+            expr::Expr::literal(expr::Literal::None)
+        };
+
+        self.consume(
+            &TokenKind::Semicolon,
+            "Expect ';' after variable declaration.",
+        )?;
+        Ok(stmt::Stmt::Var { name, initializer })
+    }
+
+    /// Parses a statement. This can be a print statement, a block statement, or an expression statement.
+    fn statement(&mut self) -> Result<stmt::Stmt> {
+        if self.match_kinds(&[TokenKind::Print]) {
+            return self.print_statement();
+        }
+        if self.match_kinds(&[TokenKind::LeftBrace]) {
+            return self.block_statement();
+        }
+        self.expression_statement()
+    }
+
+    /// Parses a block statement, which consists of multiple statements enclosed in braces (`{}`).
+    fn block_statement(&mut self) -> Result<stmt::Stmt> {
+        let mut statements = Vec::new();
+
+        while !self.check(&TokenKind::RightBrace) && !self.at_end() {
+            statements.push(self.declaration()?);
+        }
+
+        self.consume(&TokenKind::RightBrace, "Expect '}' after block.")?;
+        Ok(stmt::Stmt::Block(statements))
+    }
+
+    /// Parses a print statement. This method assumes the `print` keyword has already been matched.
+    fn print_statement(&mut self) -> Result<stmt::Stmt> {
+        let expr = self.expression()?;
+        self.consume(&TokenKind::Semicolon, "Expect ';' after expression.")?;
+        Ok(stmt::Stmt::Print(expr))
+    }
+
+    /// Parses an expression statement. This method expects a semicolon after the expression.
+    fn expression_statement(&mut self) -> Result<stmt::Stmt> {
+        let expr = self.expression()?;
+        self.consume(
+            &TokenKind::Semicolon,
+            "Expect ';' after expression statement.",
+        )?;
+        Ok(stmt::Stmt::Expr(expr))
     }
 
     /// Parses an expression, currently delegates to equality parsing.
     fn expression(&mut self) -> Result<expr::Expr> {
-        self.equality()
+        self.assignment()
+    }
+
+    /// Parses an assignment expression. This includes parsing variable assignments.
+    /// If the left-hand side is not a valid assignment target, an error is raised.
+    fn assignment(&mut self) -> Result<expr::Expr> {
+        let expr = self.equality()?;
+
+        if self.match_kinds(&[TokenKind::Equal]) {
+            let equals = self.previous().clone();
+            let value = self.assignment()?;
+
+            return match expr {
+                expr::Expr::Variable { name } => Ok(expr::Expr::Assign {
+                    name,
+                    value: Box::new(value),
+                }),
+                _ => {
+                    RLox::error_token(&equals, "invalid assignment target.");
+                    Err(anyhow!("Invalid assignment target."))
+                }
+            };
+        }
+
+        Ok(expr)
     }
 
     /// Parses equality expressions (==, !=).
@@ -126,19 +229,15 @@ impl<'a> Parser<'a> {
     /// * `Ok(expr::Expr)` - The parsed primary expression.
     /// * `Err(anyhow)` - If no valid primary expression is found.
     fn primary(&mut self) -> Result<expr::Expr> {
-        // Handle boolean literal 'false'
         if self.match_kinds(&[TokenKind::False]) {
             return Ok(false.into());
         }
-        // Handle boolean literal 'true'
         if self.match_kinds(&[TokenKind::True]) {
             return Ok(true.into());
         }
-        // Handle 'nil' literal
         if self.match_kinds(&[TokenKind::Nil]) {
             return Ok(expr::Expr::literal(expr::Literal::None));
         }
-        // Handle number and string literals
         if self.match_kinds(&[TokenKind::Number, TokenKind::String]) {
             match &self.previous().literal {
                 token::Literal::String(str) => {
@@ -148,14 +247,18 @@ impl<'a> Parser<'a> {
                 _ => panic!(),
             }
         }
-        // Handle parenthesized expressions
         if self.match_kinds(&[TokenKind::LeftParen]) {
             let expr = self.expression()?;
             self.consume(&TokenKind::RightParen, "Expect ')' after expression.")
                 .unwrap();
             return Ok(expr::Expr::grouping(expr));
         }
-        // If no valid primary expression is found, return an error
+
+        if self.match_kinds(&[TokenKind::Identifier]) {
+            let name = self.previous().clone();
+            return Ok(expr::Expr::Variable { name });
+        }
+
         Err(anyhow!("Expect expression."))
     }
 
@@ -290,6 +393,12 @@ mod tests {
                         literal: 456f64.into(),
                         line: 1,
                     },
+                    token::Token {
+                        kind: token::TokenKind::Semicolon,
+                        lexeme: ";".to_string(),
+                        literal: ";".into(),
+                        line: 1,
+                    },
                     token_eof(1),
                 ],
                 expected: "(- 456)",
@@ -326,6 +435,12 @@ mod tests {
                         literal: token::Literal::None,
                         line: 1,
                     },
+                    token::Token {
+                        kind: token::TokenKind::Semicolon,
+                        lexeme: ";".to_string(),
+                        literal: ";".into(),
+                        line: 1,
+                    },
                     token_eof(1),
                 ],
                 expected: "(group (* 456 789))",
@@ -336,6 +451,12 @@ mod tests {
                         kind: token::TokenKind::String,
                         lexeme: "\"hello\"".to_string(),
                         literal: "hello".into(),
+                        line: 1,
+                    },
+                    token::Token {
+                        kind: token::TokenKind::Semicolon,
+                        lexeme: ";".to_string(),
+                        literal: ";".into(),
                         line: 1,
                     },
                     token_eof(1),
@@ -380,6 +501,12 @@ mod tests {
                         literal: token::Literal::None,
                         line: 1,
                     },
+                    token::Token {
+                        kind: token::TokenKind::Semicolon,
+                        lexeme: ";".to_string(),
+                        literal: ";".into(),
+                        line: 1,
+                    },
                     token_eof(1),
                 ],
                 expected: "(* (- 123) (group 45.67))",
@@ -387,10 +514,16 @@ mod tests {
         ];
 
         for test_case in test_cases {
-            let mut parser = Parser::new(test_case.input);
-            let result = parser.parse().unwrap();
+            let mut parser = Parser::new(&test_case.input);
+            let result = parser.parse();
 
-            assert_eq!(result.to_string(), test_case.expected);
+            match result {
+                Err(e) => panic!("Parsing failed: {} input: {:?}", e, test_case.input),
+                Ok(expr) => {
+                    assert!(expr.len() == 1);
+                    assert_eq!(expr.first().unwrap().to_string(), test_case.expected);
+                }
+            };
         }
     }
 }
