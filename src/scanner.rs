@@ -1,4 +1,4 @@
-use crate::rlox::RLox;
+use crate::rlox;
 use crate::token::{Literal, Token, TokenKind, KEYWORD_MAP};
 
 pub struct Scanner<'a> {
@@ -138,7 +138,7 @@ impl<'a> Scanner<'a> {
                 } else {
                     const ERROR: &str = "Unexpected character";
                     self.errors.push(format!("{} at line {}", ERROR, self.line));
-                    RLox::error_line(self.line, ERROR);
+                    rlox::error_line(self.line, ERROR);
                 }
             }
         }
@@ -215,7 +215,7 @@ impl<'a> Scanner<'a> {
         }
 
         if self.is_at_end() {
-            RLox::error_line(self.line, "Unterminated string.");
+            rlox::error_line(self.line, "Unterminated string.");
         }
 
         self.advance();

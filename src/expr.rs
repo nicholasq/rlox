@@ -1,4 +1,4 @@
-use crate::token::{Token, TokenKind};
+use crate::token::Token;
 use std::fmt::Display;
 
 /// Macro to convert a value into a Literal using `.into()`.
@@ -71,6 +71,18 @@ pub enum Expr {
     /// # Fields
     /// - `name`: The name of the variable.
     Variable { name: Token },
+
+    /// A logical operation expression.
+    ///
+    /// # Fields
+    /// - `left`: The left-hand side expression.
+    /// - `operator`: The operator token (e.g., 'and', 'or').
+    /// - `right`: The right-hand side expression.
+    Logical {
+        left: Box<Expr>,
+        operator: Token,
+        right: Box<Expr>,
+    },
 }
 
 impl Display for Expr {
@@ -97,6 +109,13 @@ impl Display for Expr {
             }
             Expr::Variable { name } => {
                 write!(f, "{}", name.lexeme)
+            }
+            Expr::Logical {
+                left,
+                operator,
+                right,
+            } => {
+                write!(f, "({} {} {})", operator.lexeme, left, right)
             }
         }
     }
@@ -224,6 +243,7 @@ impl Display for Literal {
 mod tests {
     use super::*;
     use crate::token;
+    use crate::token::TokenKind;
     use crate::utils::tests::test_case::TestCase;
 
     #[test]
@@ -271,6 +291,34 @@ mod tests {
                     },
                 },
                 expected: "y",
+            },
+            TestCase {
+                input: Expr::Logical {
+                    left: Box::new(true.into()),
+                    operator: "and".into(),
+                    right: Box::new(false.into()),
+                },
+                expected: "(and true false)",
+            },
+            TestCase {
+                input: Expr::Logical {
+                    left: Box::new(true.into()),
+                    operator: "or".into(),
+                    right: Box::new(false.into()),
+                },
+                expected: "(or true false)",
+            },
+            TestCase {
+                input: Expr::Logical {
+                    left: Box::new(Expr::grouping(Expr::Logical {
+                        left: Box::new(true.into()),
+                        operator: "and".into(),
+                        right: Box::new(false.into()),
+                    })),
+                    operator: "or".into(),
+                    right: Box::new(Expr::grouping(expr_lit!(true))),
+                },
+                expected: "(or (group (and true false)) (group true))",
             },
         ];
 

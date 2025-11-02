@@ -38,6 +38,18 @@ pub mod tests {
                     lexeme: "/".to_string(),
                     line: 1,
                 },
+                "and" => Token {
+                    literal: value.into(),
+                    kind: TokenKind::And,
+                    lexeme: "and".to_string(),
+                    line: 1,
+                },
+                "or" => Token {
+                    literal: value.into(),
+                    kind: TokenKind::Or,
+                    lexeme: "or".to_string(),
+                    line: 1,
+                },
                 _ => panic!("{} not a valid token value", value),
             }
         }

@@ -1,6 +1,6 @@
+use crate::rlox;
 use crate::{
-    expr,
-    rlox::RLox,
+    expr, expr_lit,
     stmt::{self},
     token::{self, TokenKind},
 };
@@ -67,13 +67,93 @@ impl<'a> Parser<'a> {
 
     /// Parses a statement. This can be a print statement, a block statement, or an expression statement.
     fn statement(&mut self) -> Result<stmt::Stmt> {
+        if self.match_kinds(&[TokenKind::If]) {
+            return self.if_statement();
+        }
         if self.match_kinds(&[TokenKind::Print]) {
             return self.print_statement();
         }
         if self.match_kinds(&[TokenKind::LeftBrace]) {
             return self.block_statement();
         }
+        if self.match_kinds(&[TokenKind::While]) {
+            return self.while_statement();
+        }
+        if self.match_kinds(&[TokenKind::For]) {
+            return self.for_statement();
+        }
         self.expression_statement()
+    }
+
+    fn if_statement(&mut self) -> Result<stmt::Stmt> {
+        self.consume(&TokenKind::LeftParen, "Expect '(' after 'if'.")?;
+        let condition = self.expression()?;
+        self.consume(&TokenKind::RightParen, "Expect ')' after if condition.")?;
+
+        let then_branch = Box::new(self.statement()?);
+        let else_branch = if self.match_kinds(&[TokenKind::Else]) {
+            Some(Box::new(self.statement()?))
+        } else {
+            None
+        };
+
+        Ok(stmt::Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        })
+    }
+
+    fn for_statement(&mut self) -> Result<stmt::Stmt> {
+        self.consume(&TokenKind::LeftParen, "Expect '(' after 'for'.")?;
+
+        let initializer = if self.match_kinds(&[TokenKind::Semicolon]) {
+            None
+        } else if self.match_kinds(&[TokenKind::Var]) {
+            Some(self.var_declaration()?)
+        } else {
+            Some(self.expression_statement()?)
+        };
+
+        let condition = if !self.check(&TokenKind::Semicolon) {
+            self.expression()?
+        } else {
+            expr_lit!(true)
+        };
+        self.consume(&TokenKind::Semicolon, "Expect ';' after loop condition.")?;
+
+        let increment = if !self.check(&TokenKind::RightParen) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(&TokenKind::RightParen, "Expect ')' after for clauses.")?;
+
+        let mut body = self.statement()?;
+
+        if let Some(inc) = increment {
+            body = stmt::Stmt::Block(vec![body, stmt::Stmt::Expr(inc)]);
+        }
+
+        body = stmt::Stmt::While {
+            condition,
+            body: Box::new(body),
+        };
+
+        if let Some(init) = initializer {
+            body = stmt::Stmt::Block(vec![init, body]);
+        }
+
+        Ok(body)
+    }
+
+    fn while_statement(&mut self) -> Result<stmt::Stmt> {
+        self.consume(&TokenKind::LeftParen, "Expect '(' after 'while'.")?;
+        let condition = self.expression()?;
+        self.consume(&TokenKind::RightParen, "Expect ')' after condition.")?;
+        let body = Box::new(self.statement()?);
+
+        Ok(stmt::Stmt::While { condition, body })
     }
 
     /// Parses a block statement, which consists of multiple statements enclosed in braces (`{}`).
@@ -113,7 +193,7 @@ impl<'a> Parser<'a> {
     /// Parses an assignment expression. This includes parsing variable assignments.
     /// If the left-hand side is not a valid assignment target, an error is raised.
     fn assignment(&mut self) -> Result<expr::Expr> {
-        let expr = self.equality()?;
+        let expr = self.or()?;
 
         if self.match_kinds(&[TokenKind::Equal]) {
             let equals = self.previous().clone();
@@ -125,9 +205,41 @@ impl<'a> Parser<'a> {
                     value: Box::new(value),
                 }),
                 _ => {
-                    RLox::error_token(&equals, "invalid assignment target.");
+                    rlox::error_token(&equals, "invalid assignment target.");
                     Err(anyhow!("Invalid assignment target."))
                 }
+            };
+        }
+
+        Ok(expr)
+    }
+
+    fn or(&mut self) -> Result<expr::Expr> {
+        let mut expr = self.and()?;
+
+        while self.match_kinds(&[TokenKind::Or]) {
+            let operator = self.previous().clone();
+            let right = self.and()?;
+            expr = expr::Expr::Logical {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            }
+        }
+
+        Ok(expr)
+    }
+
+    fn and(&mut self) -> Result<expr::Expr> {
+        let mut expr = self.equality()?;
+
+        while self.match_kinds(&[TokenKind::And]) {
+            let operator = self.previous().clone();
+            let right = self.equality()?;
+            expr = expr::Expr::Logical {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
             };
         }
 
@@ -286,7 +398,7 @@ impl<'a> Parser<'a> {
         if self.check(kind) {
             return Ok(self.advance());
         }
-        RLox::error_token(self.peek(), message);
+        rlox::error_token(self.peek(), message);
         Err(anyhow!("{}", message))
     }
 

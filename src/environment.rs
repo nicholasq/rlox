@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::error::RuntimeError;
 use crate::expr::Literal;
+use crate::runtime_err;
 use crate::token::Token;
 use anyhow::Result;
 
@@ -63,9 +64,9 @@ impl Environment {
                 return Ok(value);
             }
         }
-        Err(RuntimeError::new(
+        Err(runtime_err!(
             format!("Undefined variable '{}'", name.lexeme),
-            name.clone(),
+            Some(name.clone())
         ))
     }
 
@@ -87,9 +88,9 @@ impl Environment {
                 return Ok(());
             }
         }
-        Err(RuntimeError::new(
+        Err(runtime_err!(
             format!("Undefined variable '{}'", name.lexeme),
-            name.clone(),
+            Some(name.clone())
         ))
     }
 }

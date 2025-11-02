@@ -35,7 +35,8 @@ fn main() {
 fn run_file(file_name: &str) {
     if let Ok(content) = fs::read_to_string(file_name) {
         let environment = Environment::new();
-        let interpreter = Interpreter::new(environment);
+        let mut stdout = io::stdout();
+        let interpreter = Interpreter::new(environment, &mut stdout);
         let mut rlox = RLox::new(interpreter);
         rlox.run(&content);
         if rlox.had_error {
@@ -47,16 +48,15 @@ fn run_file(file_name: &str) {
 }
 
 fn run_prompt() {
-    let stdin = io::stdin();
-    let mut stdout = io::stdout();
-    let mut lines = stdin.lock().lines();
+    let mut lines = io::stdin().lock().lines();
     let environment = Environment::new();
-    let interpreter = Interpreter::new(environment);
+    let mut stdout = io::stdout();
+    let interpreter = Interpreter::new(environment, &mut stdout);
     let mut rlox = RLox::new(interpreter);
 
     loop {
         print!("> ");
-        stdout.flush().unwrap();
+        io::stdout().flush().unwrap();
 
         if let Some(Ok(line)) = lines.next() {
             if line.is_empty() {
