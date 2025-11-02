@@ -43,7 +43,7 @@ impl<'a, W: Write> Interpreter<'a, W> {
             }
             stmt::Stmt::Print(expression) => {
                 let value = self.evaluate_expr(expression)?;
-                write!(self.output, "{}", value).map_err(|_| {
+                writeln!(self.output, "{}", value.printable()).map_err(|_| {
                     runtime_err!(
                         format!("failed to write output for expr: {}", expression),
                         None

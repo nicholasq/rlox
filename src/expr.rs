@@ -239,6 +239,15 @@ impl Display for Literal {
     }
 }
 
+impl Literal {
+    pub fn printable(&self) -> String {
+        match self {
+            Literal::String(s) => s.to_string(),
+            _ => self.to_string(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
