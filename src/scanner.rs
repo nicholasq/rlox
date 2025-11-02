@@ -1,4 +1,3 @@
-use crate::rlox;
 use crate::token::{Literal, Token, TokenKind, KEYWORD_MAP};
 
 pub struct Scanner<'a> {
@@ -138,7 +137,7 @@ impl<'a> Scanner<'a> {
                 } else {
                     const ERROR: &str = "Unexpected character";
                     self.errors.push(format!("{} at line {}", ERROR, self.line));
-                    rlox::error_line(self.line, ERROR);
+                    crate::error_line(self.line, ERROR);
                 }
             }
         }
@@ -183,22 +182,22 @@ impl<'a> Scanner<'a> {
 
     /// This method returns the next character in the source without consuming it.
     ///
-    /// ```
+    ///
     ///   1        2
     ///   |        |
     /// current  peek (returns this)
-    /// ```
+    ///
     fn peek(&mut self) -> char {
         self.source[self.current..].chars().next().unwrap()
     }
 
     /// This method returns the character after the next in the source without consuming it.
     ///
-    /// ```
+    ///
     ///   1        2        3
     ///   |        |        |
     /// current   peek   peek_next(returns this)
-    /// ```
+    ///
     fn peek_next(&mut self) -> char {
         self.source[self.current..].chars().nth(1).unwrap()
     }
@@ -215,7 +214,7 @@ impl<'a> Scanner<'a> {
         }
 
         if self.is_at_end() {
-            rlox::error_line(self.line, "Unterminated string.");
+            crate::error_line(self.line, "Unterminated string.");
         }
 
         self.advance();

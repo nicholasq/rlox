@@ -14,6 +14,12 @@ pub struct Environment {
     scopes: Vec<HashMap<String, Literal>>,
 }
 
+impl Default for Environment {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Environment {
     /// Creates a new `Environment` with a single, empty scope.
     pub fn new() -> Self {

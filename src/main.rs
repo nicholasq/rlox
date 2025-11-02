@@ -3,20 +3,7 @@ use std::fs;
 use std::io::{self, BufRead, Write};
 use std::process::exit;
 
-mod environment;
-mod error;
-mod expr;
-mod interpreter;
-mod parser;
-mod rlox;
-mod scanner;
-mod stmt;
-mod token;
-mod utils;
-
-use crate::environment::Environment;
-use crate::interpreter::Interpreter;
-use crate::rlox::RLox;
+use rlox::{environment::Environment, interpreter::Interpreter, RLox};
 
 fn main() {
     match args().len() {
@@ -34,7 +21,7 @@ fn main() {
 
 fn run_file(file_name: &str) {
     if let Ok(content) = fs::read_to_string(file_name) {
-        let environment = Environment::new();
+        let environment = Environment::default();
         let mut stdout = io::stdout();
         let interpreter = Interpreter::new(environment, &mut stdout);
         let mut rlox = RLox::new(interpreter);
@@ -49,7 +36,7 @@ fn run_file(file_name: &str) {
 
 fn run_prompt() {
     let mut lines = io::stdin().lock().lines();
-    let environment = Environment::new();
+    let environment = Environment::default();
     let mut stdout = io::stdout();
     let interpreter = Interpreter::new(environment, &mut stdout);
     let mut rlox = RLox::new(interpreter);
@@ -65,6 +52,7 @@ fn run_prompt() {
             }
 
             rlox.run(&line);
+            println!();
             rlox.had_error = false;
         } else {
             eprintln!("Error reading line or EOF reached");

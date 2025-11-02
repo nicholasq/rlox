@@ -1,9 +1,15 @@
-use crate::{
-    interpreter::Interpreter,
-    parser::Parser,
-    scanner::Scanner,
-    token::{self, TokenKind},
-};
+mod error;
+mod expr;
+mod scanner;
+mod stmt;
+mod utils;
+
+pub mod environment;
+pub mod interpreter;
+pub mod parser;
+pub mod token;
+
+use crate::{interpreter::Interpreter, parser::Parser, scanner::Scanner, token::TokenKind};
 use std::io::Write;
 
 pub struct RLox<'a, W: Write> {

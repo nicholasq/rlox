@@ -1,4 +1,3 @@
-use crate::rlox;
 use crate::{
     expr, expr_lit,
     stmt::{self},
@@ -205,7 +204,7 @@ impl<'a> Parser<'a> {
                     value: Box::new(value),
                 }),
                 _ => {
-                    rlox::error_token(&equals, "invalid assignment target.");
+                    crate::error_token(&equals, "invalid assignment target.");
                     Err(anyhow!("Invalid assignment target."))
                 }
             };
@@ -398,7 +397,7 @@ impl<'a> Parser<'a> {
         if self.check(kind) {
             return Ok(self.advance());
         }
-        rlox::error_token(self.peek(), message);
+        crate::error_token(self.peek(), message);
         Err(anyhow!("{}", message))
     }
 

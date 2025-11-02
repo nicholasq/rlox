@@ -341,7 +341,7 @@ mod tests {
         ];
 
         for test_case in test_cases {
-            let environment = Environment::new();
+            let environment = Environment::default();
             let mut output = Vec::new();
             let mut interpreter = Interpreter::new(environment, &mut output);
             let value = interpreter.evaluate_expr(&test_case.input);
